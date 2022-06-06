@@ -386,7 +386,8 @@ namespace base_local_planner {
     global_plan_ = orig_global_plan;
     
     //when we get a new plan, we also want to clear any latch we may have on goal tolerances
-    xy_tolerance_latch_ = false;
+    //xy_tolerance_latch_ = false;
+    ROS_DEBUG("xy_tolerance_latch (%d)",xy_tolerance_latch_);
     //reset the at goal flag
     reached_goal_ = false;
     return true;
