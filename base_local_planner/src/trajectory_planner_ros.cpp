@@ -387,7 +387,7 @@ namespace base_local_planner {
     
     //when we get a new plan, we also want to clear any latch we may have on goal tolerances
     //xy_tolerance_latch_ = false;
-    ROS_DEBUG("xy_tolerance_latch (%d)",xy_tolerance_latch_);
+    //ROS_DEBUG("xy_tolerance_latch (%d)",xy_tolerance_latch_);
     //reset the at goal flag
     reached_goal_ = false;
     return true;
@@ -458,8 +458,9 @@ namespace base_local_planner {
         cmd_vel.linear.y = 0.0;
         cmd_vel.angular.z = 0.0;
         rotating_to_goal_ = false;
-        xy_tolerance_latch_ = false;
         reached_goal_ = true;
+        xy_tolerance_latch_ = false;
+        ROS_DEBUG("xy_tolerance_latch set to (%d)",xy_tolerance_latch_);
       } else {
         //we need to call the next two lines to make sure that the trajectory
         //planner updates its path distance and goal distance grids
