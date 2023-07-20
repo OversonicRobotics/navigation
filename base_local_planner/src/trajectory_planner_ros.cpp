@@ -390,8 +390,8 @@ namespace base_local_planner {
     global_plan_ = orig_global_plan;
     
     //when we get a new plan, we also want to clear any latch we may have on goal tolerances
-    //xy_tolerance_latch_ = false;
-    //ROS_DEBUG("xy_tolerance_latch (%d)",xy_tolerance_latch_);
+    xy_tolerance_latch_ = false;
+    ROS_DEBUG("xy_tolerance_latch (%d)",xy_tolerance_latch_);
     //reset the at goal flag
     reached_goal_ = false;
     return true;
@@ -446,7 +446,7 @@ namespace base_local_planner {
     double goal_th = yaw;
 
     //check to see if we've reached the goal position
-    if (xy_tolerance_latch_ || (getGoalPositionDistance(global_pose, goal_x, goal_y) <= xy_goal_tolerance_)) {
+    if (xy_tolerance_latch_ || (getGoalPositionDistance(global_pose, goal_x, goal_y) <= xy_goal_tolerance_/2)) {
 
       //if the user wants to latch goal tolerance, if we ever reach the goal location, we'll
       //just rotate in place
