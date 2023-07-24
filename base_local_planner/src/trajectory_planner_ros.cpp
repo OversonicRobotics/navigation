@@ -48,7 +48,7 @@
 
 #include <ros/console.h>
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 
 #include <base_local_planner/goal_functions.h>
 #include <nav_msgs/Path.h>
@@ -60,6 +60,8 @@
 PLUGINLIB_EXPORT_CLASS(base_local_planner::TrajectoryPlannerROS, nav_core::BaseLocalPlanner)
 
 namespace base_local_planner {
+  double goal_x_old = 0;
+  double goal_y_old = 0;
 
   void TrajectoryPlannerROS::reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level) {
       if (setup_ && config.restore_defaults) {
@@ -110,6 +112,8 @@ namespace base_local_planner {
       double stop_time_buffer;
       std::string world_model_type;
       rotating_to_goal_ = false;
+      double goal_x_old = 999;
+      double goal_y_old = 999;
 
       //initialize the copy of the costmap the controller will use
       costmap_ = costmap_ros_->getCostmap();
@@ -128,6 +132,8 @@ namespace base_local_planner {
       private_nh.param("stop_time_buffer", stop_time_buffer, 0.2);
 
       private_nh.param("latch_xy_goal_tolerance", latch_xy_goal_tolerance_, false);
+
+
 
       //Since I screwed up nicely in my documentation, I'm going to add errors
       //informing the user if they've set one of the wrong parameters
@@ -150,6 +156,7 @@ namespace base_local_planner {
       {
         double controller_frequency = 0;
         private_nh.param(controller_frequency_param_name, controller_frequency, 20.0);
+        ROS_DEBUG("CONTROLLER FREQUENCY = %.2f", controller_frequency);
         if(controller_frequency > 0)
           sim_period_ = 1.0 / controller_frequency;
         else
@@ -158,7 +165,7 @@ namespace base_local_planner {
           sim_period_ = 0.05;
         }
       }
-      ROS_INFO("Sim period is set to %.2f", sim_period_);
+      ROS_DEBUG("Sim period is set to %.2f", sim_period_);
 
       private_nh.param("sim_time", sim_time, 1.0);
       private_nh.param("sim_granularity", sim_granularity, 0.025);
@@ -256,11 +263,15 @@ namespace base_local_planner {
           max_vel_x, min_vel_x, max_vel_th_, min_vel_th_, min_in_place_vel_th_, backup_vel,
           dwa, heading_scoring, heading_scoring_timestep, meter_scoring, simple_attractor, y_vels, stop_time_buffer, sim_period_, angular_sim_granularity);
 
-      map_viz_.initialize(name, global_frame_, boost::bind(&TrajectoryPlanner::getCellCosts, tc_, _1, _2, _3, _4, _5, _6));
+      map_viz_.initialize(name,
+                          global_frame_,
+                          [this](int cx, int cy, float &path_cost, float &goal_cost, float &occ_cost, float &total_cost){
+                              return tc_->getCellCosts(cx, cy, path_cost, goal_cost, occ_cost, total_cost);
+                          });
       initialized_ = true;
 
       dsrv_ = new dynamic_reconfigure::Server<BaseLocalPlannerConfig>(private_nh);
-      dynamic_reconfigure::Server<BaseLocalPlannerConfig>::CallbackType cb = boost::bind(&TrajectoryPlannerROS::reconfigureCB, this, _1, _2);
+      dynamic_reconfigure::Server<BaseLocalPlannerConfig>::CallbackType cb = [this](auto& config, auto level){ reconfigureCB(config, level); };
       dsrv_->setCallback(cb);
 
     } else {
@@ -384,10 +395,10 @@ namespace base_local_planner {
     //reset the global plan
     global_plan_.clear();
     global_plan_ = orig_global_plan;
-    
+
     //when we get a new plan, we also want to clear any latch we may have on goal tolerances
-    //xy_tolerance_latch_ = false;
-    //ROS_DEBUG("xy_tolerance_latch (%d)",xy_tolerance_latch_);
+
+    ROS_DEBUG("SET PLAN: xy_tolerance_latch (%d)",xy_tolerance_latch_);
     //reset the at goal flag
     reached_goal_ = false;
     return true;
@@ -436,11 +447,17 @@ namespace base_local_planner {
     //we assume the global goal is the last point in the global plan
     const double goal_x = goal_point.pose.position.x;
     const double goal_y = goal_point.pose.position.y;
+    if(goal_x != goal_x_old && goal_y != goal_y_old){
+        ROS_DEBUG("NEW GOAL FOUND");
+        xy_tolerance_latch_ = false;
+        goal_x_old = goal_x;
+        goal_y_old = goal_y;
+    }
+
 
     const double yaw = tf2::getYaw(goal_point.pose.orientation);
 
     double goal_th = yaw;
-
     //check to see if we've reached the goal position
     if (xy_tolerance_latch_ || (getGoalPositionDistance(global_pose, goal_x, goal_y) <= xy_goal_tolerance_)) {
 
@@ -449,7 +466,6 @@ namespace base_local_planner {
       if (latch_xy_goal_tolerance_) {
         xy_tolerance_latch_ = true;
       }
-
       double angle = getGoalOrientationAngleDifference(global_pose, goal_th);
       //check to see if the goal orientation has been reached
       if (fabs(angle) <= yaw_goal_tolerance_) {
@@ -460,7 +476,6 @@ namespace base_local_planner {
         rotating_to_goal_ = false;
         reached_goal_ = true;
         xy_tolerance_latch_ = false;
-        ROS_DEBUG("xy_tolerance_latch set to (%d)",xy_tolerance_latch_);
       } else {
         //we need to call the next two lines to make sure that the trajectory
         //planner updates its path distance and goal distance grids
@@ -514,7 +529,6 @@ namespace base_local_planner {
     cmd_vel.linear.x = drive_cmds.pose.position.x;
     cmd_vel.linear.y = drive_cmds.pose.position.y;
     cmd_vel.angular.z = tf2::getYaw(drive_cmds.pose.orientation);
-
     //if we cannot move... tell someone
     if (path.cost_ < 0) {
       ROS_DEBUG_NAMED("trajectory_planner_ros",
@@ -525,7 +539,7 @@ namespace base_local_planner {
       return false;
     }
 
-    ROS_DEBUG_NAMED("trajectory_planner_ros", "A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.",
+    ROS_DEBUG("CMD_VEL: A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.",
         cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
 
     // Fill out the local plan
