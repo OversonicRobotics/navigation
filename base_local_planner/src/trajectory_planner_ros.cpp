@@ -448,7 +448,7 @@ namespace base_local_planner {
     const double goal_x = goal_point.pose.position.x;
     const double goal_y = goal_point.pose.position.y;
     if(goal_x != goal_x_old && goal_y != goal_y_old){
-    ROS_DEBUG("NEW GOAL FOUND");
+        ROS_DEBUG("NEW GOAL FOUND");
         xy_tolerance_latch_ = false;
         goal_x_old = goal_x;
         goal_y_old = goal_y;
