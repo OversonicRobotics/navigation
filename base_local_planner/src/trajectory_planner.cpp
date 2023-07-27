@@ -185,6 +185,7 @@ namespace base_local_planner{
 
     double xg_old = 999;
     double yg_old = 999;
+    double vx_old = 999;
 
     escaping_ = false;
     final_goal_position_valid_ = false;
@@ -573,10 +574,10 @@ namespace base_local_planner{
 
     xg = final_goal_x_;
     yg = final_goal_y_;
-    ROS_WARN("GOAL GOAL GOAL X: %.2f", xg);
+    /*ROS_WARN("GOAL GOAL GOAL X: %.2f", xg);
     ROS_WARN("GOAL GOAL GOAL Y: %.2f", yg);
     ROS_WARN("OLD GOAL X: %.2f", xg_old);
-    ROS_WARN("OLD GOAL Y: %.2f", yg_old);
+    ROS_WARN("OLD GOAL Y: %.2f", yg_old);*/
     if ((fabs(xg - xg_old) > 0.1 || fabs(yg-yg_old) > 0.1) || (hypot(xg - x , yg - y) ) < 0.10){     //check if it is better with && or with ||
         ROS_WARN("NEW GOAL ARRIVED");
         xg_old = xg;
@@ -585,10 +586,15 @@ namespace base_local_planner{
     }
     xrob = -cos(theta) * x - sin(theta) * y + cos(theta) * xg + sin(theta) * yg;
     yrob = sin(theta) * x - cos(theta) * y - sin(theta) * xg + cos(theta) * yg;
+    if (fabs(vx - vx_old) > 0.05){
+        ROS_WARN("START MOVING, GO BACK TO OLD PLANNER STRATEGY");
+        oriented = true;
+        vx_old = vx;
+    }
     if (yrob > 0.1 || yrob < -0.1){
-        ROS_WARN("OUT OF YR TOLERANCE %.2f", yrob);
+        //ROS_WARN("OUT OF YR TOLERANCE %.2f", yrob);
         if(!oriented){
-            ROS_WARN("NOT ORIENTED");
+            //ROS_WARN("NOT ORIENTED");
             if(atan2(yrob, xrob) < 0 && atan2(yrob, xrob) >= -M_PI){
                 if(max_vel_theta >= 0){
                     max_vel_theta = 0;
@@ -601,7 +607,7 @@ namespace base_local_planner{
                 }
             }
         else{
-            ROS_WARN("OKOKOKOKOKOK");
+            //ROS_WARN("ORIENTED");
             max_vel_theta = 1.0;
             min_vel_theta = -1.0;
             }
@@ -610,8 +616,12 @@ namespace base_local_planner{
         ROS_WARN("INSIDE YR TOLERANCE");
         max_vel_theta = 1.0;
         min_vel_theta = -1.0;
-        oriented = true;
+        //oriented = true;
         }
+    ROS_WARN("VX = .%2f while VX_OLD= .%2f", vx, vx_old);
+    if (oriented){
+    ROS_WARN("ORIENTED");
+    }
 
     ROS_WARN("Maximum and minimum theta velocities are %.2f and %.2f", max_vel_theta, min_vel_theta);
     //we want to sample the velocity space regularly
@@ -714,8 +724,13 @@ namespace base_local_planner{
 
     //next we want to generate trajectories for rotating in place
     //ROS_WARN("HERE ON PLACE");
+    if(!oriented){
     if(min_vel_theta < 0){
     vtheta_samp = max_vel_theta;
+    }
+    else{
+    vtheta_samp = min_vel_theta;
+    }
     }
     else{
     vtheta_samp = min_vel_theta;
@@ -774,12 +789,15 @@ namespace base_local_planner{
           }
         }
       }
+    if(!oriented){
     if(min_vel_theta < 0){
         vtheta_samp -= dvtheta;
     }
     else{
       vtheta_samp += dvtheta;
-    }
+    }}
+    else{
+        vtheta_samp += dvtheta;}
     }
     //do we have a legal trajectory
     if (best_traj->cost_ >= 0) {
@@ -934,7 +952,7 @@ namespace base_local_planner{
     }
 
     //and finally, if we can't do anything else, we want to generate trajectories that move backwards slowly
-    vtheta_samp = 0.0;
+    /*vtheta_samp = 0.0;
     vx_samp = backup_vel_;
     vy_samp = 0.0;
     generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
@@ -950,7 +968,7 @@ namespace base_local_planner{
        */
 
     //we'll allow moving backwards slowly even when the static map shows it as blocked
-    swap = best_traj;
+    /*swap = best_traj;
     best_traj = comp_traj;
     comp_traj = swap;
 
@@ -984,7 +1002,7 @@ namespace base_local_planner{
 
     //if the trajectory failed because the footprint hits something, we're still going to back up
     if(best_traj->cost_ == -1.0)
-      best_traj->cost_ = 1.0;
+      best_traj->cost_ = 1.0; */
     return *best_traj;
 
   }
