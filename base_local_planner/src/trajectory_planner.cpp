@@ -181,6 +181,10 @@ namespace base_local_planner{
     rotating_right = false;
     strafe_left = false;
     strafe_right = false;
+    oriented = false;
+
+    double xg_old = 999;
+    double yg_old = 999;
 
     escaping_ = false;
     final_goal_position_valid_ = false;
@@ -542,6 +546,7 @@ namespace base_local_planner{
     double xrob, yrob;
     double xg, yg;
 
+
     //compute feasible velocity limits in robot space
     double max_vel_x = max_vel_x_, max_vel_theta;
     double min_vel_x, min_vel_theta;
@@ -568,24 +573,45 @@ namespace base_local_planner{
 
     xg = final_goal_x_;
     yg = final_goal_y_;
+    ROS_WARN("GOAL GOAL GOAL X: %.2f", xg);
+    ROS_WARN("GOAL GOAL GOAL Y: %.2f", yg);
+    ROS_WARN("OLD GOAL X: %.2f", xg_old);
+    ROS_WARN("OLD GOAL Y: %.2f", yg_old);
+    if ((fabs(xg - xg_old) > 0.1 || fabs(yg-yg_old) > 0.1) || (hypot(xg - x , yg - y) ) < 0.10){     //check if it is better with && or with ||
+        ROS_WARN("NEW GOAL ARRIVED");
+        xg_old = xg;
+        yg_old = yg;
+        oriented = false;
+    }
     xrob = -cos(theta) * x - sin(theta) * y + cos(theta) * xg + sin(theta) * yg;
     yrob = sin(theta) * x - cos(theta) * y - sin(theta) * xg + cos(theta) * yg;
     if (yrob > 0.1 || yrob < -0.1){
-    if(atan2(yrob, xrob) < 0 && atan2(yrob, xrob) >= -M_PI){
-        if(max_vel_theta >= 0){
-            max_vel_theta = 0;
-        }
+        ROS_WARN("OUT OF YR TOLERANCE %.2f", yrob);
+        if(!oriented){
+            ROS_WARN("NOT ORIENTED");
+            if(atan2(yrob, xrob) < 0 && atan2(yrob, xrob) >= -M_PI){
+                if(max_vel_theta >= 0){
+                    max_vel_theta = 0;
+                    }
+                }
+            else{
+                if(min_vel_theta <= 0){
+                    min_vel_theta = 0;
+                    }
+                }
+            }
+        else{
+            ROS_WARN("OKOKOKOKOKOK");
+            max_vel_theta = 1.0;
+            min_vel_theta = -1.0;
+            }
         }
     else{
-        if(min_vel_theta <= 0){
-            min_vel_theta = 0;
+        ROS_WARN("INSIDE YR TOLERANCE");
+        max_vel_theta = 1.0;
+        min_vel_theta = -1.0;
+        oriented = true;
         }
-    }
-    }
-    else{
-    max_vel_theta = 1.0;
-    min_vel_theta = -1.0;
-    }
 
     ROS_WARN("Maximum and minimum theta velocities are %.2f and %.2f", max_vel_theta, min_vel_theta);
     //we want to sample the velocity space regularly
@@ -623,12 +649,13 @@ namespace base_local_planner{
           best_traj = comp_traj;
           comp_traj = swap;
         }
-        if(min_vel_theta < 0){
+        /*if(min_vel_theta < 0){
             vtheta_samp = max_vel_theta;
             }
             else{
             vtheta_samp = min_vel_theta;
-        }
+        }*/
+        vtheta_samp = min_vel_theta;
         //vtheta_samp = min_vel_theta;
         //next sample all theta trajectories
         for(int j = 0; j < vtheta_samples_ - 1; ++j){
@@ -642,12 +669,13 @@ namespace base_local_planner{
             comp_traj = swap;
           }
           //vtheta_samp += dvtheta;
-          if(min_vel_theta < 0){
+          /*if(min_vel_theta < 0){
             vtheta_samp -= dvtheta;
             }
           else{
             vtheta_samp += dvtheta;
-            }
+            }*/
+          vtheta_samp += dvtheta;
         }
         vx_samp += dvx;
       }
@@ -672,8 +700,8 @@ namespace base_local_planner{
         vtheta_samp = 0.0;
         generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
             acc_x, acc_y, acc_theta, impossible_cost, *comp_traj);
-        ROS_WARN("FIRST ATTEMPT: %.2f", best_traj->thetav_);
-        ROS_WARN("TRAJ COST VS COMP COST: %.2f %.2f", best_traj->cost_, comp_traj->cost_);
+        //ROS_WARN("FIRST ATTEMPT: %.2f", best_traj->thetav_);
+        //ROS_WARN("TRAJ COST VS COMP COST: %.2f %.2f", best_traj->cost_, comp_traj->cost_);
 
         //if the new trajectory is better... let's take it
         if(comp_traj->cost_ >= 0 && (comp_traj->cost_ < best_traj->cost_ || best_traj->cost_ < 0)){
@@ -685,7 +713,7 @@ namespace base_local_planner{
     } // end if not escaping
 
     //next we want to generate trajectories for rotating in place
-    ROS_WARN("HERE ON PLACE");
+    //ROS_WARN("HERE ON PLACE");
     if(min_vel_theta < 0){
     vtheta_samp = max_vel_theta;
     }
@@ -708,8 +736,8 @@ namespace base_local_planner{
 
       //if the new trajectory is better... let's take it...
       //note if we can legally rotate in place we prefer to do that rather than move with y velocity
-      ROS_WARN("SECOND ATTEMPT: %.2f with dvtheta = %.2f" , vtheta_samp, dvtheta);
-      ROS_WARN("TRAJ COST VS COMP COST: %.2f %.2f", best_traj->cost_, comp_traj->cost_);
+      //ROS_WARN("SECOND ATTEMPT: %.2f with dvtheta = %.2f" , vtheta_samp, dvtheta);
+      //ROS_WARN("TRAJ COST VS COMP COST: %.2f %.2f", best_traj->cost_, comp_traj->cost_);
       if(comp_traj->cost_ >= 0
           && (comp_traj->cost_ <= best_traj->cost_ || best_traj->cost_ < 0 || best_traj->yv_ != 0.0)
           && (vtheta_samp > dvtheta || vtheta_samp < -1 * dvtheta)){
@@ -730,8 +758,6 @@ namespace base_local_planner{
               comp_traj = swap;
               heading_dist = ahead_gdist;*/
             //if we haven't already tried rotating left since we've moved forward
-            if(!stuck_left)
-            if(!stuck_right)
             if (vtheta_samp <= 0 && !stuck_left) {
               swap = best_traj;
               best_traj = comp_traj;
