@@ -372,8 +372,6 @@ namespace base_local_planner{
       cost = occdist_scale_ * occ_cost + path_distance_bias_ * path_dist + 0.1 * heading_diff + goal_dist * goal_distance_bias_;
     }
     traj.cost_ = cost;
-    //ROS_WARN("PathCost: %f, GoalCost: %.2f, OccCost: %.2f, HeadingCost: %.2f", path_distance_bias_ * path_dist,  goal_dist * goal_distance_bias_, occdist_scale_ * occ_cost,  0.3 * heading_diff);
-    //ROS_WARN("Cost: %f, vx: %.2f, vy: %.2f, vtheta: %.2f", cost, vx_samp, vy_samp, vtheta_samp);
 
   }
 
@@ -574,12 +572,7 @@ namespace base_local_planner{
 
     xg = final_goal_x_;
     yg = final_goal_y_;
-    /*ROS_WARN("GOAL GOAL GOAL X: %.2f", xg);
-    ROS_WARN("GOAL GOAL GOAL Y: %.2f", yg);
-    ROS_WARN("OLD GOAL X: %.2f", xg_old);
-    ROS_WARN("OLD GOAL Y: %.2f", yg_old);*/
     if ((fabs(xg - xg_old) > 0.1 || fabs(yg-yg_old) > 0.1) || (hypot(xg - x , yg - y) ) < 0.10){     //check if it is better with && or with ||
-        ROS_WARN("NEW GOAL ARRIVED");
         xg_old = xg;
         yg_old = yg;
         oriented = false;
@@ -587,14 +580,12 @@ namespace base_local_planner{
     xrob = -cos(theta) * x - sin(theta) * y + cos(theta) * xg + sin(theta) * yg;
     yrob = sin(theta) * x - cos(theta) * y - sin(theta) * xg + cos(theta) * yg;
     if (fabs(vx - vx_old) > 0.05){
-        ROS_WARN("START MOVING, GO BACK TO OLD PLANNER STRATEGY");
+        ROS_DEBUG("START MOVING, GO BACK TO OLD PLANNER STRATEGY");
         oriented = true;
         vx_old = vx;
     }
     if (yrob > 0.1 || yrob < -0.1){
-        //ROS_WARN("OUT OF YR TOLERANCE %.2f", yrob);
         if(!oriented){
-            //ROS_WARN("NOT ORIENTED");
             if(atan2(yrob, xrob) < 0 && atan2(yrob, xrob) >= -M_PI){
                 if(max_vel_theta >= 0){
                     max_vel_theta = 0;
@@ -607,23 +598,16 @@ namespace base_local_planner{
                 }
             }
         else{
-            //ROS_WARN("ORIENTED");
             max_vel_theta = 1.0;
             min_vel_theta = -1.0;
             }
         }
     else{
-        ROS_WARN("INSIDE YR TOLERANCE");
         max_vel_theta = 1.0;
         min_vel_theta = -1.0;
         //oriented = true;
         }
-    ROS_WARN("VX = .%2f while VX_OLD= .%2f", vx, vx_old);
-    if (oriented){
-    ROS_WARN("ORIENTED");
-    }
 
-    ROS_WARN("Maximum and minimum theta velocities are %.2f and %.2f", max_vel_theta, min_vel_theta);
     //we want to sample the velocity space regularly
     double dvx = (max_vel_x - min_vel_x) / (vx_samples_ - 1);
     double dvtheta = (max_vel_theta - min_vel_theta) / (vtheta_samples_ - 1);
@@ -710,8 +694,6 @@ namespace base_local_planner{
         vtheta_samp = 0.0;
         generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
             acc_x, acc_y, acc_theta, impossible_cost, *comp_traj);
-        //ROS_WARN("FIRST ATTEMPT: %.2f", best_traj->thetav_);
-        //ROS_WARN("TRAJ COST VS COMP COST: %.2f %.2f", best_traj->cost_, comp_traj->cost_);
 
         //if the new trajectory is better... let's take it
         if(comp_traj->cost_ >= 0 && (comp_traj->cost_ < best_traj->cost_ || best_traj->cost_ < 0)){
@@ -723,7 +705,6 @@ namespace base_local_planner{
     } // end if not escaping
 
     //next we want to generate trajectories for rotating in place
-    //ROS_WARN("HERE ON PLACE");
     if(!oriented){
     if(min_vel_theta < 0){
     vtheta_samp = max_vel_theta;
@@ -751,8 +732,6 @@ namespace base_local_planner{
 
       //if the new trajectory is better... let's take it...
       //note if we can legally rotate in place we prefer to do that rather than move with y velocity
-      //ROS_WARN("SECOND ATTEMPT: %.2f with dvtheta = %.2f" , vtheta_samp, dvtheta);
-      //ROS_WARN("TRAJ COST VS COMP COST: %.2f %.2f", best_traj->cost_, comp_traj->cost_);
       if(comp_traj->cost_ >= 0
           && (comp_traj->cost_ <= best_traj->cost_ || best_traj->cost_ < 0 || best_traj->yv_ != 0.0)
           && (vtheta_samp > dvtheta || vtheta_samp < -1 * dvtheta)){
@@ -1013,7 +992,7 @@ namespace base_local_planner{
 
     Eigen::Vector3f pos(global_pose.pose.position.x, global_pose.pose.position.y, tf2::getYaw(global_pose.pose.orientation));
     Eigen::Vector3f vel(global_vel.pose.position.x, global_vel.pose.position.y, tf2::getYaw(global_vel.pose.orientation));
-    ROS_WARN("global vel = %.2f",  tf2::getYaw(global_vel.pose.orientation));
+    ROS_DEBUG("global vel = %.2f",  tf2::getYaw(global_vel.pose.orientation));
 
     //reset the map for new operations
     path_map_.resetPathDist();
@@ -1084,7 +1063,7 @@ namespace base_local_planner{
       tf2::Quaternion q;
       q.setRPY(0, 0, best.thetav_);
       tf2::convert(q, drive_velocities.pose.orientation);
-      ROS_WARN("DRIVE COMMANDS ARE: %.2f, %.2f, %.2f", drive_velocities.pose.position.x, drive_velocities.pose.position.y, best.thetav_);
+      ROS_DEBUG("DRIVE COMMANDS ARE: %.2f, %.2f, %.2f", drive_velocities.pose.position.x, drive_velocities.pose.position.y, best.thetav_);
     }
 
     return best;
