@@ -348,7 +348,7 @@ namespace base_local_planner {
     double vel_yaw = tf2::getYaw(robot_vel.pose.orientation);
     cmd_vel.linear.x = 0;
     cmd_vel.linear.y = 0;
-    double ang_diff = angles::shortest_angular_distance(yaw, goaNEW GOALl_th);
+    double ang_diff = angles::shortest_angular_distance(yaw, goal_th);
 
     double v_theta_samp = ang_diff > 0.0 ? std::min(max_vel_th_,
         std::max(min_in_place_vel_th_, ang_diff)) : std::max(min_vel_th_,
