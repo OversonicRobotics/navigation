@@ -344,12 +344,11 @@ namespace base_local_planner {
   }
 
   bool TrajectoryPlannerROS::rotateToGoal(const geometry_msgs::PoseStamped& global_pose, const geometry_msgs::PoseStamped& robot_vel, double goal_th, geometry_msgs::Twist& cmd_vel){
-    ROS_WARN("ARRIVED IN TOLERANCE, ROTATING TO GOAL");
     double yaw = tf2::getYaw(global_pose.pose.orientation);
     double vel_yaw = tf2::getYaw(robot_vel.pose.orientation);
     cmd_vel.linear.x = 0;
     cmd_vel.linear.y = 0;
-    double ang_diff = angles::shortest_angular_distance(yaw, goal_th);
+    double ang_diff = angles::shortest_angular_distance(yaw, goaNEW GOALl_th);
 
     double v_theta_samp = ang_diff > 0.0 ? std::min(max_vel_th_,
         std::max(min_in_place_vel_th_, ang_diff)) : std::max(min_vel_th_,
