@@ -267,6 +267,9 @@ namespace base_local_planner {
 
       bool stuck_left, stuck_right; ///< @brief Booleans to keep the robot from oscillating during rotation
       bool rotating_left, rotating_right; ///< @brief Booleans to keep track of the direction of rotation for the robot
+      bool oriented;
+      double xg_old, yg_old;
+      double vx_old;
 
       bool stuck_left_strafe, stuck_right_strafe; ///< @brief Booleans to keep the robot from oscillating during strafing
       bool strafe_right, strafe_left; ///< @brief Booleans to keep track of strafe direction for the robot

@@ -78,10 +78,10 @@ namespace base_local_planner {
   }
 
   TrajectoryPlannerROS::TrajectoryPlannerROS() :
-      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom") {}
+      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom_in") {}
 
   TrajectoryPlannerROS::TrajectoryPlannerROS(std::string name, tf2_ros::Buffer* tf, costmap_2d::Costmap2DROS* costmap_ros) :
-      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom") {
+      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom_in") {
 
       //initialize the planner
       initialize(name, tf, costmap_ros);
@@ -344,6 +344,7 @@ namespace base_local_planner {
   }
 
   bool TrajectoryPlannerROS::rotateToGoal(const geometry_msgs::PoseStamped& global_pose, const geometry_msgs::PoseStamped& robot_vel, double goal_th, geometry_msgs::Twist& cmd_vel){
+    ROS_WARN("ARRIVED IN TOLERANCE, ROTATING TO GOAL");
     double yaw = tf2::getYaw(global_pose.pose.orientation);
     double vel_yaw = tf2::getYaw(robot_vel.pose.orientation);
     cmd_vel.linear.x = 0;
