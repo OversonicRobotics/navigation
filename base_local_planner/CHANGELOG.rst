@@ -1,6 +1,11 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Changelog for package base_local_planner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1.17.4 (2023-08-23)
+-------------------
+* rotation to goal starts when distance to goal is equal to half goal tolerance.
+
+* rotational and translational speed tolerance (from odometry) to consider the robot stopped is increased from 0.01 to 0.1.
 
 1.17.3 (2023-01-10)
 -------------------

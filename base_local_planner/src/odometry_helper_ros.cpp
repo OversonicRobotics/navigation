@@ -42,6 +42,7 @@
 namespace base_local_planner {
 
 OdometryHelperRos::OdometryHelperRos(std::string odom_topic) {
+  ROS_WARN("odom_topic = %s", odom_topic.c_str());
   setOdomTopic( odom_topic );
 }
 
