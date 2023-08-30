@@ -60,6 +60,8 @@
 PLUGINLIB_EXPORT_CLASS(base_local_planner::TrajectoryPlannerROS, nav_core::BaseLocalPlanner)
 
 namespace base_local_planner {
+  double goal_x_old = 0;
+  double goal_y_old = 0;
 
   void TrajectoryPlannerROS::reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level) {
       if (setup_ && config.restore_defaults) {
@@ -76,10 +78,10 @@ namespace base_local_planner {
   }
 
   TrajectoryPlannerROS::TrajectoryPlannerROS() :
-      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom") {}
+      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom_in") {}
 
   TrajectoryPlannerROS::TrajectoryPlannerROS(std::string name, tf2_ros::Buffer* tf, costmap_2d::Costmap2DROS* costmap_ros) :
-      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom") {
+      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom_in") {
 
       //initialize the planner
       initialize(name, tf, costmap_ros);
@@ -98,8 +100,8 @@ namespace base_local_planner {
 
       tf_ = tf;
       costmap_ros_ = costmap_ros;
-      rot_stopped_velocity_ = 1e-2;
-      trans_stopped_velocity_ = 1e-2;
+      rot_stopped_velocity_ = 1e-1;
+      trans_stopped_velocity_ = 1e-1;
       double sim_time, sim_granularity, angular_sim_granularity;
       int vx_samples, vtheta_samples;
       double path_distance_bias, goal_distance_bias, occdist_scale, heading_lookahead, oscillation_reset_dist, escape_reset_dist, escape_reset_theta;
@@ -110,6 +112,8 @@ namespace base_local_planner {
       double stop_time_buffer;
       std::string world_model_type;
       rotating_to_goal_ = false;
+      double goal_x_old = 999;
+      double goal_y_old = 999;
 
       //initialize the copy of the costmap the controller will use
       costmap_ = costmap_ros_->getCostmap();
@@ -128,6 +132,8 @@ namespace base_local_planner {
       private_nh.param("stop_time_buffer", stop_time_buffer, 0.2);
 
       private_nh.param("latch_xy_goal_tolerance", latch_xy_goal_tolerance_, false);
+
+
 
       //Since I screwed up nicely in my documentation, I'm going to add errors
       //informing the user if they've set one of the wrong parameters
@@ -150,6 +156,7 @@ namespace base_local_planner {
       {
         double controller_frequency = 0;
         private_nh.param(controller_frequency_param_name, controller_frequency, 20.0);
+        ROS_DEBUG("CONTROLLER FREQUENCY = %.2f", controller_frequency);
         if(controller_frequency > 0)
           sim_period_ = 1.0 / controller_frequency;
         else
@@ -158,7 +165,7 @@ namespace base_local_planner {
           sim_period_ = 0.05;
         }
       }
-      ROS_INFO("Sim period is set to %.2f", sim_period_);
+      ROS_DEBUG("Sim period is set to %.2f", sim_period_);
 
       private_nh.param("sim_time", sim_time, 1.0);
       private_nh.param("sim_granularity", sim_granularity, 0.025);
@@ -174,7 +181,7 @@ namespace base_local_planner {
                                                                   "goal_distance_bias",
                                                                   "gdist_scale",
                                                                   0.6);
-      // values of the deprecated params need to be applied to the current params, as defaults 
+      // values of the deprecated params need to be applied to the current params, as defaults
       // of defined for dynamic reconfigure will override them otherwise.
       if (private_nh.hasParam("pdist_scale") & !private_nh.hasParam("path_distance_bias"))
       {
@@ -388,10 +395,10 @@ namespace base_local_planner {
     //reset the global plan
     global_plan_.clear();
     global_plan_ = orig_global_plan;
-    
+
     //when we get a new plan, we also want to clear any latch we may have on goal tolerances
-    //xy_tolerance_latch_ = false;
-    //ROS_DEBUG("xy_tolerance_latch (%d)",xy_tolerance_latch_);
+
+    ROS_DEBUG("SET PLAN: xy_tolerance_latch (%d)",xy_tolerance_latch_);
     //reset the at goal flag
     reached_goal_ = false;
     return true;
@@ -440,20 +447,25 @@ namespace base_local_planner {
     //we assume the global goal is the last point in the global plan
     const double goal_x = goal_point.pose.position.x;
     const double goal_y = goal_point.pose.position.y;
+    if(goal_x != goal_x_old && goal_y != goal_y_old){
+        ROS_DEBUG("NEW GOAL FOUND");
+        xy_tolerance_latch_ = false;
+        goal_x_old = goal_x;
+        goal_y_old = goal_y;
+    }
+
 
     const double yaw = tf2::getYaw(goal_point.pose.orientation);
 
     double goal_th = yaw;
-
     //check to see if we've reached the goal position
-    if (xy_tolerance_latch_ || (getGoalPositionDistance(global_pose, goal_x, goal_y) <= xy_goal_tolerance_)) {
+    if (xy_tolerance_latch_ || (getGoalPositionDistance(global_pose, goal_x, goal_y) <= xy_goal_tolerance_/2)) {
 
       //if the user wants to latch goal tolerance, if we ever reach the goal location, we'll
       //just rotate in place
       if (latch_xy_goal_tolerance_) {
         xy_tolerance_latch_ = true;
       }
-
       double angle = getGoalOrientationAngleDifference(global_pose, goal_th);
       //check to see if the goal orientation has been reached
       if (fabs(angle) <= yaw_goal_tolerance_) {
@@ -464,7 +476,6 @@ namespace base_local_planner {
         rotating_to_goal_ = false;
         reached_goal_ = true;
         xy_tolerance_latch_ = false;
-        ROS_DEBUG("xy_tolerance_latch set to (%d)",xy_tolerance_latch_);
       } else {
         //we need to call the next two lines to make sure that the trajectory
         //planner updates its path distance and goal distance grids
@@ -475,7 +486,6 @@ namespace base_local_planner {
         //copy over the odometry information
         nav_msgs::Odometry base_odom;
         odom_helper_.getOdom(base_odom);
-
         //if we're not stopped yet... we want to stop... taking into account the acceleration limits of the robot
         if ( ! rotating_to_goal_ && !base_local_planner::stopped(base_odom, rot_stopped_velocity_, trans_stopped_velocity_)) {
           if ( ! stopWithAccLimits(global_pose, robot_vel, cmd_vel)) {
@@ -518,7 +528,6 @@ namespace base_local_planner {
     cmd_vel.linear.x = drive_cmds.pose.position.x;
     cmd_vel.linear.y = drive_cmds.pose.position.y;
     cmd_vel.angular.z = tf2::getYaw(drive_cmds.pose.orientation);
-
     //if we cannot move... tell someone
     if (path.cost_ < 0) {
       ROS_DEBUG_NAMED("trajectory_planner_ros",
@@ -529,7 +538,7 @@ namespace base_local_planner {
       return false;
     }
 
-    ROS_DEBUG_NAMED("trajectory_planner_ros", "A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.",
+    ROS_DEBUG("CMD_VEL: A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.",
         cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
 
     // Fill out the local plan
