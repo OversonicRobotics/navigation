@@ -214,6 +214,7 @@ namespace base_local_planner {
       double max_vel_to_stop;
       bool rotating_to_goal_;
       bool reached_goal_;
+      bool first_plan;
       bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
 
       ros::Publisher g_plan_pub_, l_plan_pub_;

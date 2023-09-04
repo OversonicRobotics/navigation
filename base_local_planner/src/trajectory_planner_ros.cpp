@@ -114,6 +114,7 @@ namespace base_local_planner {
       rotating_to_goal_ = false;
       double goal_x_old = 999;
       double goal_y_old = 999;
+      bool first_plan = true;
 
       //initialize the copy of the costmap the controller will use
       costmap_ = costmap_ros_->getCostmap();
@@ -404,7 +405,10 @@ namespace base_local_planner {
 
     ROS_DEBUG("SET PLAN: xy_tolerance_latch (%d)",xy_tolerance_latch_);
     //reset the at goal flag
+    if (first_plan){
+    first_plan = false;
     reached_goal_ = false;
+    }
     return true;
   }
 
@@ -631,6 +635,9 @@ namespace base_local_planner {
       return false;
     }
     //return flag set in controller
-    return reached_goal_; 
+    if (reached_goal_){
+    first_plan = true;
+    }
+    return reached_goal_;
   }
 };
