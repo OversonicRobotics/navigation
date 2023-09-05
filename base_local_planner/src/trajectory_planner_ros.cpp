@@ -114,6 +114,7 @@ namespace base_local_planner {
       rotating_to_goal_ = false;
       double goal_x_old = 999;
       double goal_y_old = 999;
+      bool first_plan = true;
 
       //initialize the copy of the costmap the controller will use
       costmap_ = costmap_ros_->getCostmap();
@@ -217,6 +218,7 @@ namespace base_local_planner {
       private_nh.param("holonomic_robot", holonomic_robot, true);
       private_nh.param("max_vel_x", max_vel_x, 0.5);
       private_nh.param("min_vel_x", min_vel_x, 0.1);
+      private_nh.param("max_vel_to_stop", max_vel_to_stop, 1.0);
 
       double max_rotational_vel;
       private_nh.param("max_rotational_vel", max_rotational_vel, 1.0);
@@ -334,6 +336,8 @@ namespace base_local_planner {
       cmd_vel.linear.x = vx;
       cmd_vel.linear.y = vy;
       cmd_vel.angular.z = vth;
+      if (fabs(cmd_vel.angular.z) > 1)
+      cmd_vel.angular.z = 1 * sign(cmd_vel.angular.z);
       return true;
     }
 
@@ -361,7 +365,8 @@ namespace base_local_planner {
     v_theta_samp = sign(v_theta_samp) * std::min(std::max(fabs(v_theta_samp), min_acc_vel), max_acc_vel);
 
     //we also want to make sure to send a velocity that allows us to stop when we reach the goal given our acceleration limits
-    double max_speed_to_stop = sqrt(2 * acc_lim_theta_ * fabs(ang_diff)); 
+    //double max_speed_to_stop = sqrt(2 * acc_lim_theta_/4 * fabs(ang_diff));
+    double max_speed_to_stop = max_vel_to_stop;
 
     v_theta_samp = sign(v_theta_samp) * std::min(max_speed_to_stop, fabs(v_theta_samp));
 
@@ -400,7 +405,10 @@ namespace base_local_planner {
 
     ROS_DEBUG("SET PLAN: xy_tolerance_latch (%d)",xy_tolerance_latch_);
     //reset the at goal flag
+    if (first_plan){
+    first_plan = false;
     reached_goal_ = false;
+    }
     return true;
   }
 
@@ -447,7 +455,7 @@ namespace base_local_planner {
     //we assume the global goal is the last point in the global plan
     const double goal_x = goal_point.pose.position.x;
     const double goal_y = goal_point.pose.position.y;
-    if(goal_x != goal_x_old && goal_y != goal_y_old){
+    if(goal_x != goal_x_old || goal_y != goal_y_old){
         ROS_DEBUG("NEW GOAL FOUND");
         xy_tolerance_latch_ = false;
         goal_x_old = goal_x;
@@ -627,6 +635,9 @@ namespace base_local_planner {
       return false;
     }
     //return flag set in controller
-    return reached_goal_; 
+    if (reached_goal_){
+    first_plan = true;
+    }
+    return reached_goal_;
   }
 };
