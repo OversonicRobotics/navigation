@@ -320,6 +320,10 @@ namespace base_local_planner {
 
       boost::mutex configuration_mutex_;
 
+      double sign(double x){
+        return x < 0.0 ? -1.0 : 1.0;
+      }
+
       /**
        * @brief  Compute x position based on velocity
        * @param  xi The current x position
