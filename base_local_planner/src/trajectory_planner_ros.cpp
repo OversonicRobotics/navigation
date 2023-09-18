@@ -366,15 +366,17 @@ namespace base_local_planner {
 
     //we also want to make sure to send a velocity that allows us to stop when we reach the goal given our acceleration limits
     //double max_speed_to_stop = sqrt(2 * acc_lim_theta_/4 * fabs(ang_diff));
-    double max_speed_to_stop = max_vel_to_stop;
-
+    //double max_speed_to_stop = max_vel_to_stop;
+    ROS_WARN("ang diff %.2f", ang_diff);
+    double max_speed_to_stop = fabs(ang_diff) > 0.785 ?  sqrt(2 * acc_lim_theta_ * fabs(ang_diff)) : max_vel_to_stop;
+    ROS_WARN("max speed to stop %.2f", max_speed_to_stop);
     v_theta_samp = sign(v_theta_samp) * std::min(max_speed_to_stop, fabs(v_theta_samp));
 
     // Re-enforce min_in_place_vel_th_.  It is more important than the acceleration limits.
     v_theta_samp = v_theta_samp > 0.0
       ? std::min( max_vel_th_, std::max( min_in_place_vel_th_, v_theta_samp ))
       : std::max( min_vel_th_, std::min( -1.0 * min_in_place_vel_th_, v_theta_samp ));
-
+    ROS_WARN("vtheta = %.2f", v_theta_samp);
     //we still want to lay down the footprint of the robot and check if the action is legal
     bool valid_cmd = tc_->checkTrajectory(global_pose.pose.position.x, global_pose.pose.position.y, yaw,
         robot_vel.pose.position.x, robot_vel.pose.position.y, vel_yaw, 0.0, 0.0, v_theta_samp);
