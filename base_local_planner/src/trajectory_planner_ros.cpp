@@ -256,7 +256,6 @@ namespace base_local_planner {
       ROS_ASSERT_MSG(world_model_type == "costmap", "At this time, only costmap world models are supported by this controller");
       world_model_ = new CostmapModel(*costmap_);
       std::vector<double> y_vels = loadYVels(private_nh);
-      ROS_WARN("Call get footprint");
       footprint_spec_ = costmap_ros_->getRobotFootprint();
 
       tc_ = new TrajectoryPlanner(*world_model_, *costmap_, footprint_spec_,
@@ -327,7 +326,6 @@ namespace base_local_planner {
 
     //we do want to check whether or not the command is valid
     double yaw = tf2::getYaw(global_pose.pose.orientation);
-    ROS_WARN("Call get footprint");
     footprint_spec_ = costmap_ros_->getRobotFootprint();
     tc_->setFootprint(footprint_spec_);
     bool valid_cmd = tc_->checkTrajectory(global_pose.pose.position.x, global_pose.pose.position.y, yaw,
@@ -351,7 +349,6 @@ namespace base_local_planner {
   }
 
   bool TrajectoryPlannerROS::rotateToGoal(const geometry_msgs::PoseStamped& global_pose, const geometry_msgs::PoseStamped& robot_vel, double goal_th, geometry_msgs::Twist& cmd_vel){
-    ROS_WARN("Call get footprint");
     footprint_spec_ = costmap_ros_->getRobotFootprint();
     tc_->setFootprint(footprint_spec_);
     double yaw = tf2::getYaw(global_pose.pose.orientation);
@@ -401,7 +398,6 @@ namespace base_local_planner {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
-    ROS_WARN("Call get footprint");
     footprint_spec_ = costmap_ros_->getRobotFootprint();
     tc_->setFootprint(footprint_spec_);
     //reset the global plan
@@ -430,7 +426,6 @@ namespace base_local_planner {
     if (!costmap_ros_->getRobotPose(global_pose)) {
       return false;
     }
-    ROS_WARN("Call get footprint");
     footprint_spec_ = costmap_ros_->getRobotFootprint();
     tc_->setFootprint(footprint_spec_);
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
@@ -527,7 +522,6 @@ namespace base_local_planner {
       return true;
     }
 
-    ROS_WARN("Call get footprint");
     footprint_spec_ = costmap_ros_->getRobotFootprint();
     tc_->setFootprint(footprint_spec_);
     tc_->updatePlan(transformed_plan);
@@ -585,7 +579,6 @@ namespace base_local_planner {
 
   bool TrajectoryPlannerROS::checkTrajectory(double vx_samp, double vy_samp, double vtheta_samp, bool update_map){
     geometry_msgs::PoseStamped global_pose;
-    ROS_WARN("Call get footprint");
     footprint_spec_ = costmap_ros_->getRobotFootprint();
     tc_->setFootprint(footprint_spec_);
     if(costmap_ros_->getRobotPose(global_pose)){
@@ -617,7 +610,6 @@ namespace base_local_planner {
 
   double TrajectoryPlannerROS::scoreTrajectory(double vx_samp, double vy_samp, double vtheta_samp, bool update_map){
     // Copy of checkTrajectory that returns a score instead of True / False
-    ROS_WARN("Call get footprint");
     footprint_spec_ = costmap_ros_->getRobotFootprint();
     tc_->setFootprint(footprint_spec_);
     geometry_msgs::PoseStamped global_pose;
