@@ -256,7 +256,6 @@ namespace base_local_planner {
       ROS_ASSERT_MSG(world_model_type == "costmap", "At this time, only costmap world models are supported by this controller");
       world_model_ = new CostmapModel(*costmap_);
       std::vector<double> y_vels = loadYVels(private_nh);
-
       footprint_spec_ = costmap_ros_->getRobotFootprint();
 
       tc_ = new TrajectoryPlanner(*world_model_, *costmap_, footprint_spec_,
@@ -327,6 +326,8 @@ namespace base_local_planner {
 
     //we do want to check whether or not the command is valid
     double yaw = tf2::getYaw(global_pose.pose.orientation);
+    footprint_spec_ = costmap_ros_->getRobotFootprint();
+    tc_->setFootprint(footprint_spec_);
     bool valid_cmd = tc_->checkTrajectory(global_pose.pose.position.x, global_pose.pose.position.y, yaw,
         robot_vel.pose.position.x, robot_vel.pose.position.y, vel_yaw, vx, vy, vth);
 
@@ -348,6 +349,8 @@ namespace base_local_planner {
   }
 
   bool TrajectoryPlannerROS::rotateToGoal(const geometry_msgs::PoseStamped& global_pose, const geometry_msgs::PoseStamped& robot_vel, double goal_th, geometry_msgs::Twist& cmd_vel){
+    footprint_spec_ = costmap_ros_->getRobotFootprint();
+    tc_->setFootprint(footprint_spec_);
     double yaw = tf2::getYaw(global_pose.pose.orientation);
     double vel_yaw = tf2::getYaw(robot_vel.pose.orientation);
     cmd_vel.linear.x = 0;
@@ -395,7 +398,8 @@ namespace base_local_planner {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
-
+    footprint_spec_ = costmap_ros_->getRobotFootprint();
+    tc_->setFootprint(footprint_spec_);
     //reset the global plan
     global_plan_.clear();
     global_plan_ = orig_global_plan;
@@ -422,7 +426,8 @@ namespace base_local_planner {
     if (!costmap_ros_->getRobotPose(global_pose)) {
       return false;
     }
-
+    footprint_spec_ = costmap_ros_->getRobotFootprint();
+    tc_->setFootprint(footprint_spec_);
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
     //get the global plan in our frame
     if (!transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap_, global_frame_, transformed_plan)) {
@@ -517,6 +522,8 @@ namespace base_local_planner {
       return true;
     }
 
+    footprint_spec_ = costmap_ros_->getRobotFootprint();
+    tc_->setFootprint(footprint_spec_);
     tc_->updatePlan(transformed_plan);
 
     //compute what trajectory to drive along
@@ -572,6 +579,8 @@ namespace base_local_planner {
 
   bool TrajectoryPlannerROS::checkTrajectory(double vx_samp, double vy_samp, double vtheta_samp, bool update_map){
     geometry_msgs::PoseStamped global_pose;
+    footprint_spec_ = costmap_ros_->getRobotFootprint();
+    tc_->setFootprint(footprint_spec_);
     if(costmap_ros_->getRobotPose(global_pose)){
       if(update_map){
         //we need to give the planne some sort of global plan, since we're only checking for legality
@@ -601,6 +610,8 @@ namespace base_local_planner {
 
   double TrajectoryPlannerROS::scoreTrajectory(double vx_samp, double vy_samp, double vtheta_samp, bool update_map){
     // Copy of checkTrajectory that returns a score instead of True / False
+    footprint_spec_ = costmap_ros_->getRobotFootprint();
+    tc_->setFootprint(footprint_spec_);
     geometry_msgs::PoseStamped global_pose;
     if(costmap_ros_->getRobotPose(global_pose)){
       if(update_map){
