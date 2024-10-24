@@ -472,7 +472,6 @@ namespace base_local_planner {
 
     double goal_th = yaw;
     //check to see if we've reached the goal position
-    ROS_WARN("Current goal tolerance %.2f", xy_goal_tolerance_);
     if (xy_tolerance_latch_ || (getGoalPositionDistance(global_pose, goal_x, goal_y) <= xy_goal_tolerance_/2)) {
 
       //if the user wants to latch goal tolerance, if we ever reach the goal location, we'll
