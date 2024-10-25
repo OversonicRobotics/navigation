@@ -84,6 +84,7 @@ namespace base_local_planner{
       occdist_scale_ = config.occdist_scale;
 
 
+
       if (meter_scoring_) {
         //if we use meter scoring, then we want to multiply the biases by the resolution of the costmap
         double resolution = costmap_.getResolution();
