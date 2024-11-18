@@ -74,14 +74,15 @@ namespace base_local_planner {
         setup_ = true;
       }
       tc_->reconfigure(config);
+      xy_goal_tolerance_ = config.xy_goal_tolerance;
       reached_goal_ = false;
   }
 
   TrajectoryPlannerROS::TrajectoryPlannerROS() :
-      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom_in") {}
+      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("ekf_odom_pose") {}
 
   TrajectoryPlannerROS::TrajectoryPlannerROS(std::string name, tf2_ros::Buffer* tf, costmap_2d::Costmap2DROS* costmap_ros) :
-      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom_in") {
+      world_model_(NULL), tc_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("ekf_odom_pose") {
 
       //initialize the planner
       initialize(name, tf, costmap_ros);
@@ -104,6 +105,7 @@ namespace base_local_planner {
       trans_stopped_velocity_ = 1e-1;
       double sim_time, sim_granularity, angular_sim_granularity;
       int vx_samples, vtheta_samples;
+      double xy_goal_tolerance;
       double path_distance_bias, goal_distance_bias, occdist_scale, heading_lookahead, oscillation_reset_dist, escape_reset_dist, escape_reset_theta;
       bool holonomic_robot, dwa, simple_attractor, heading_scoring;
       double heading_scoring_timestep;
@@ -125,7 +127,7 @@ namespace base_local_planner {
       private_nh.param("prune_plan", prune_plan_, true);
 
       private_nh.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.05);
-      private_nh.param("xy_goal_tolerance", xy_goal_tolerance_, 0.10);
+      private_nh.param("xy_goal_tolerance", xy_goal_tolerance_, 0.15);
       private_nh.param("acc_lim_x", acc_lim_x_, 2.5);
       private_nh.param("acc_lim_y", acc_lim_y_, 2.5);
       private_nh.param("acc_lim_theta", acc_lim_theta_, 3.2);
@@ -356,7 +358,6 @@ namespace base_local_planner {
     cmd_vel.linear.x = 0;
     cmd_vel.linear.y = 0;
     double ang_diff = angles::shortest_angular_distance(yaw, goal_th);
-
     double v_theta_samp = ang_diff > 0.0 ? std::min(max_vel_th_,
         std::max(min_in_place_vel_th_, ang_diff)) : std::max(min_vel_th_,
         std::min(-1.0 * min_in_place_vel_th_, ang_diff));
